@@ -62,6 +62,26 @@ ORDER BY depth DESC
 LIMIT 5;
 ```
 
+### AI Use
+Token cost money, so if you have a huge codebase and wants to know what something does, you can do the following:
+
+```
+-- search a specific keyword you think will bring something interesting
+SELECT f.*
+FROM files_fts fts
+JOIN files f ON f.id = fts.rowid
+WHERE fts.tokenized_path MATCH 'buddy'
+```
+
+<details>
+  <summary> Output </summary>
+  
+  <img width="778" height="183" alt="image" src="https://github.com/user-attachments/assets/a03f7523-deff-4186-8090-54556ed59f79" />
+
+</details>
+
+This way you can copy and paster specific paths and better scope the AI use.
+
 ## requirements
 
 python 3.8+ (uses `os.scandir`, `pathlib`, `tkinter` — all standard library, no pip installs needed)
