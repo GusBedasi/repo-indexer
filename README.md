@@ -24,7 +24,7 @@ A file dialog opens, pick the repo root. it walks the tree, extracts metadata, a
 <details>
   <summary>Dialog window</summary>
 
-  ![Dialog window](./image.png)
+  ![Dialog window](./dialog.png)
 </details>
 
 then open the database with any SQLite client and go wild:
