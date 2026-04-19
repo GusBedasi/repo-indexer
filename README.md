@@ -10,6 +10,7 @@ i wanted a way to understand large codebases (think 100GB, millions of files) wi
 
 - recursively walks a directory tree (skipping `.git`, `node_modules`, etc.)
 - extracts metadata per file: path, filename, extension, language, size, line count, depth, last modified
+- full-text search via FTS5 — paths are tokenized (split on `/`, `.`, `_`, `-`) and stored in an inverted index, so keyword lookups use `MATCH` instead of `LIKE '%keyword%'`
 - stores everything in a SQLite database
 - pops up a folder picker so you don't have to type paths
 
@@ -24,7 +25,7 @@ A file dialog opens, pick the repo root. it walks the tree, extracts metadata, a
 <details>
   <summary>Dialog window</summary>
 
-  ![Dialog window](./dialog.png)
+  ![Dialog window](./assets/dialog.png)
 </details>
 
 then open the database with any SQLite client and go wild:
@@ -42,10 +43,17 @@ FROM files
 ORDER BY line_count DESC
 LIMIT 10;
 
--- find files related to payments
-SELECT path, line_count
-FROM files
-WHERE path LIKE '%payment%';
+-- find files related to payments (uses FTS5 inverted index)
+SELECT f.path, f.line_count
+FROM file_fts fts
+JOIN files f ON f.id = fts.rowid
+WHERE fts.tokenized_path MATCH 'payment';
+
+-- combine keywords (AND by default)
+SELECT f.path, f.line_count
+FROM file_fts fts
+JOIN files f ON f.id = fts.rowid
+WHERE fts.tokenized_path MATCH 'cache test';
 
 -- what's the deepest nested file?
 SELECT path, depth
@@ -60,7 +68,4 @@ python 3.8+ (uses `os.scandir`, `pathlib`, `tkinter` — all standard library, n
 
 ## what's next
 
-- [ ] FTS5 full-text search on tokenized paths (so `MATCH 'payment'` instead of `LIKE '%payment%'`)
-- [ ] incremental re-indexing via git status instead of full re-walks
-- [ ] code-aware tokenizer (camelCase/snake_case splitting)
 - [ ] query CLI so you don't need a separate SQLite client
