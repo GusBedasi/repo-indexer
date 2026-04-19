@@ -40,12 +40,15 @@ def extract(entry):
         "path": Path(entry.path).as_posix(),
         "filename": entry.name,
         "language": extract_language(extension),
-        "size": entry.stat().st_size,
+        "size": entry_stats.st_size,
         "last_modified": last_modified,
         "line_count": line_count,
         "depth": len(Path(entry.path).parts),
         "extension": extension
     }
+
+def extract_tokenized_path(path, root):
+    return Path(path).relative_to(root).as_posix().replace("/", " ").replace(".", " ").replace("_", " ").replace("-", " ")
 
 def walk(root):
     with os.scandir(root) as it:
@@ -59,6 +62,12 @@ def walk(root):
 
 def init_db(repository_name="repository_data.db"):
     conn = sqlite3.connect(repository_name)
+
+    ## Drop existing tables if they exist to start fresh
+    conn.execute("DROP TABLE IF EXISTS file_fts")
+    conn.execute("DROP TABLE IF EXISTS files")
+
+    ## Create main table for file metadata
     conn.execute("""
         CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,6 +79,13 @@ def init_db(repository_name="repository_data.db"):
             size INTEGER,
             depth INTEGER,
             modified TEXT
+        )
+    """)
+
+    ## Create FTS5 virtual table for tokenized paths
+    conn.execute("""
+        CREATE VIRTUAL TABLE IF NOT EXISTS file_fts USING fts5(
+            tokenized_path
         )
     """)
     return conn
@@ -86,8 +102,7 @@ if __name__ == "__main__":
     for entry in walk(repo_path):
         data = extract(entry)
         #data = json.loads(entry)
-        print(data)
-        conn.execute("""
+        cursor = conn.execute("""
             INSERT INTO files (path, filename, language, line_count, extension, size, depth, modified)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -99,6 +114,17 @@ if __name__ == "__main__":
             data["size"],
             data["depth"],
             data["last_modified"]
+        ))
+
+        file_id = cursor.lastrowid
+        tokenized_path = extract_tokenized_path(data["path"], repo_path)
+                          
+        conn.execute("""
+            INSERT INTO file_fts (rowid, tokenized_path)
+            VALUES (?, ?)
+        """, (
+            file_id,
+            tokenized_path
         ))
     conn.commit()
     conn.close()
